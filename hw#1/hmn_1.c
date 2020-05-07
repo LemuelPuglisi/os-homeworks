@@ -17,7 +17,7 @@
  * @return void 
  */
 
-char * extract_filename (char * path, char * filename); 
+void extract_filename (char * path, char * filename); 
 
 /*
     Homework n.1
@@ -50,9 +50,8 @@ int main (int argc, char* argv[])
     }
 
     directory = argv[argc - 1]; 
-    dir = opendir(directory);
 
-    if (ENOENT == errno) {
+    if ((dir = opendir(directory)) == NULL) {
 
         printf("[error] the directory %s doesn't exists.\n", directory); 
         exit(1); 
@@ -69,9 +68,9 @@ int main (int argc, char* argv[])
         strcat(destionatio_path, "/"); 
         strcat(destionatio_path, filename_dest); 
 
-        source = fopen (filename_src, "r"); 
+        ; 
 
-        if (source == NULL) {
+        if ((source = fopen (filename_src, "r")) == NULL) {
 
             printf("[error] the file %s doesn't exists.\n", filename_src); 
             exit(1); 
@@ -85,7 +84,7 @@ int main (int argc, char* argv[])
             cmd_response = fread(copy_buffer, 200, 5, source);  
             cmd_response = fwrite(copy_buffer, 200, 5, destination); 
 
-        } while (cmd_response == (200 * 5)); 
+        } while (cmd_response == BUFFER_DIM); 
 
         fclose(source); 
         fclose(destination); 
@@ -94,7 +93,7 @@ int main (int argc, char* argv[])
 }
 
 
-char * extract_filename (char * path, char * filename) 
+void extract_filename (char * path, char * filename) 
 {
     size_t len = strlen(path);
     int char_counter = 0, start_position = 0; 
