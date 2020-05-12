@@ -63,7 +63,7 @@ int main (int argc, char* argv[])
             
         filename_src = argv[i + 1];
         extract_filename(filename_src, filename_dest);
-        
+
         strcpy(destionatio_path, directory); 
         strcat(destionatio_path, "/"); 
         strcat(destionatio_path, filename_dest); 
@@ -75,14 +75,13 @@ int main (int argc, char* argv[])
         }
 
         destination = fopen (destionatio_path, "w"); 
-
          
         memset(copy_buffer, 0, BUFFER_DIM);
 
         do {
                             
             cmd_response = fread(copy_buffer, 200, 5, source);  
-            fwrite(copy_buffer, 200, 5, destination); 
+            fwrite(copy_buffer, 200, cmd_response, destination); 
 
         } while (cmd_response > 0); 
 
