@@ -31,6 +31,9 @@ int main (int argc, char* argv[]) {
      * (il tipo key_t è un banale int)  
      * Per scegliere una chiave comune si può 
      * guardare alla funzione ftok().
+     * Come chiave key si pu`o utilizzare il valore speciale IPC_PRIVATE per
+     * specificare una nuova coda non ancora creata (utilizzabile solo con
+     * processi imparentati).
      */
 
     key_t   queuekey = 50; 
