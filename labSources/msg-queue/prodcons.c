@@ -9,6 +9,10 @@
 /****************************/ 
 
 /**
+ * ATTENZIONE: l'elemento type della struct deve essere > 0. 
+ */ 
+
+/**
  * Il programma prendera in input un parametro che 
  * stabilirà se il processo sarà un producer (P) o
  * un consumer. Questi ultimi sono di due tipi: A e B.
