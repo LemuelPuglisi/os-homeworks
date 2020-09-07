@@ -1,6 +1,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <wait.h>
+#include <string.h>
+#include <semaphore.h>
 
 #include <sys/ipc.h>
 #include <sys/shm.h>
@@ -41,9 +44,14 @@
  * atomica.  
  */
 
-void SIGNAL (int sem_id, int sem_number) {
+void UP (int sem_id, int sem_number, short increment) {
 
-    struct sembuf signal = {sem_number, +1, 0}; 
+    if (increment < 0) {
+        printf("cannot increment the semaphore with a non-positive number.\n"); 
+        return; 
+    }
+
+    struct sembuf signal = {sem_number, increment, 0}; 
     int cmd = semop(sem_id, &signal, 1); 
 
     if (cmd == -1) {
@@ -53,7 +61,7 @@ void SIGNAL (int sem_id, int sem_number) {
 }
 
 
-void WAIT (int sem_id, int sem_number) {
+void DOWN (int sem_id, int sem_number) {
 
     struct sembuf wait = {sem_number, -1, 0}; 
     int cmd = semop(sem_id, &wait, 1); 
@@ -64,17 +72,57 @@ void WAIT (int sem_id, int sem_number) {
     }
 }
 
-/**
- * @todo implementare producer 
- */
+void producer (short semaphore_id, short shared_memory_id) 
+{
+    printf("producer avviato.\n");
+    short item; 
+    short head; 
+    int * stack = shmat(shared_memory_id, NULL, 0); 
 
-void producer (); 
+    if (stack == (void *) -1) {
+        perror("produce shmat"); 
+        exit(1); 
+    }
 
-/**
- * @todo implementare consumer  
- */
+    while (1) {
 
-void consumer (); 
+        item = rand() % 100; // produce un elemento
+        DOWN(semaphore_id, EMPTY); 
+        DOWN(semaphore_id, MUTEX); 
+
+        head = stack[0];                // controlla quanti elementi vi sono nello stack
+        stack[1 + head + 1] = item;     // inserisce l'elemento nel primo posto disponibile 
+        stack[0]++;                     // incrementa il numero di elementi nello stack
+        printf("il produttore ha inserito %d nello stack.", item); 
+
+        UP(semaphore_id, MUTEX, 1); 
+        UP(semaphore_id, FULL, 1); 
+        sleep(1);
+    }
+}
+
+void consumer (short semaphore_id, short shared_memory_id)
+{
+    printf("consumer avviato.\n");
+    short item; 
+    short head; 
+    int * stack = shmat(shared_memory_id, NULL, 0); 
+
+    while (1) {
+        DOWN(semaphore_id, FULL); 
+        DOWN(semaphore_id, MUTEX); 
+
+        head = stack[0];            // controlla quanti elementi vi sono nello stack
+        item = stack[1 + head];     // legge l'ultimo elemento 
+        stack[0]--;                 // decrementa il numero di elementi nello stack
+        
+        printf("il consumatore ha rimosso %d dallo stack.", item); 
+
+        UP(semaphore_id, MUTEX, 1); 
+        UP(semaphore_id, EMPTY, 1); 
+        sleep(1); 
+    }
+} 
 
 int main () {
 
@@ -114,23 +162,38 @@ int main () {
         exit(1); 
     }
 
-    /** avvio il producer **/
-    if (fork != 0) {
+    /**
+     * Inizializziamo i semafori 
+     * - EMPTY: il numero di celle libere all'interno dello stack
+     * - FULL:  il numero di elementi all'interno dello stack
+     * - MUTEX: il semaforo per la mutua esclusione   
+     */     
 
-        /** avvio il consumer **/
-        if (fork != 0) {
+    UP(sem_id, EMPTY, STACK_SIZE); 
+    UP(sem_id, FULL,  0); 
+    UP(sem_id, MUTEX, 1); 
 
-            /** attendo che entrambi concludano **/
-            wait(NULL);
-            wait(NULL);
-        }
-        else {
-            consumer(); 
-        }
+    /**
+     * Ripuliamo la memoria condivisa inizializzandola a 0. 
+     */ 
+    int * stack = shmat(sh_mem_id, NULL, 0); 
+    memset(stack, 0, sh_mem_size); 
+
+    if (fork() == 0) {
+        consumer(sem_id, sh_mem_id); 
+        perror("[fork consumer]"); 
+        exit(1);
     }
-    else {
-        producer(); 
+
+    if (fork() == 0) {
+        producer(sem_id, sh_mem_id); 
+        perror("[fork producer]"); 
+        exit(1);
     }
+    
+    /** attendo che entrambi concludano **/
+    wait(NULL);
+    wait(NULL);
 
     /* rimuovo la memoria condivisa */
     shmctl(sh_mem_id, IPC_RMID, NULL); 
